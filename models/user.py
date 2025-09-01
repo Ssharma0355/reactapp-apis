@@ -9,3 +9,8 @@ class UserSignup(BaseModel):
 class VerifyOTP(BaseModel):
     email: EmailStr
     otp: str
+
+class GetAllUsets(BaseModel):
+    firstname: str
+    lastname: str
+    email: EmailStr

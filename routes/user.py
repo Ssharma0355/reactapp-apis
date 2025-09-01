@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from config.db import users_collection
-from models.user import UserSignup, VerifyOTP
+from models.user import UserSignup, VerifyOTP,GetAllUsets
 from utils.otp import generate_otp, send_email
 from passlib.hash import bcrypt
 import datetime
@@ -70,3 +70,10 @@ async def verify_otp(data: VerifyOTP):
     )
 
     return {"message": "Email verified successfully. User onboarded!"}
+
+@user.get("/users")
+async def get_allusers():
+    users = list(users_collection.find({}))
+    for user_doc in users:
+        user_doc["_id"] = str(user_doc["_id"])  # convert ObjectId to str
+    return {"users": users}
