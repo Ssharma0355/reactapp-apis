@@ -3,6 +3,7 @@ from config.db import users_collection
 from models.user import UserSignup, VerifyOTP
 from utils.otp import generate_otp, send_email_otp
 from passlib.hash import bcrypt
+from bson import ObjectId
 import datetime
 
 user = APIRouter()
@@ -85,3 +86,30 @@ async def resend_otp(email: str):
     )
 
     return {"message": "OTP resent successfully"}
+
+
+# ✅ Get all users
+@user.get("/users")
+async def get_allusers():
+    users = list(users_collection.find({}, {"password": 0, "otp": 0, "otp_expiry": 0}))
+    for user_doc in users:
+        user_doc["_id"] = str(user_doc["_id"])  # convert ObjectId to string
+    return {"users": users}
+
+# ✅ Get user by ID
+@user.get("/users/{user_id}")
+async def get_user_by_id(user_id: str):
+    try:
+        obj_id = ObjectId(user_id)  # convert string to ObjectId
+    except:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
+
+    user_doc = users_collection.find_one(
+        {"_id": obj_id},
+        {"password": 0, "otp": 0, "otp_expiry": 0}  # hide sensitive fields
+    )
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user_doc["_id"] = str(user_doc["_id"])  # convert ObjectId to string
+    return {"user": user_doc}
