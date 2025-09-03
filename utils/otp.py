@@ -4,7 +4,6 @@ from passlib.context import CryptContext
 from email.mime.text import MIMEText
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
