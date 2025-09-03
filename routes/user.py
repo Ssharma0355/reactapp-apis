@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from config.db import users_collection
 from models.user import UserSignup, VerifyOTP
-from utils.otp import generate_otp, send_email_otp   # ✅ use the new function
+from utils.otp import generate_otp, send_email_otp
 from passlib.hash import bcrypt
 import datetime
 
@@ -16,7 +16,7 @@ async def signup(user_data: UserSignup):
     otp = generate_otp()
 
     try:
-        send_email_otp(user_data.email, otp)   # ✅ fixed here
+        send_email_otp(user_data.email, otp)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error sending OTP: {e}")
 
@@ -75,7 +75,7 @@ async def resend_otp(email: str):
 
     otp = generate_otp()
     try:
-        send_email_otp(email, otp)   # ✅ fixed here
+        send_email_otp(email, otp)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error sending OTP: {e}")
 
