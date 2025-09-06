@@ -3,3 +3,4 @@ mangum
 pymongo
 python-dotenv
 passlib[bcrypt]
+uvicorn[standard]
