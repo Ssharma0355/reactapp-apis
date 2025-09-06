@@ -1,4 +1,4 @@
 {
   "builds": [{ "src": "index.py", "use": "@vercel/python" }],
-  "routes": [{ "src": "/(.*)", "dest": "index.py" }]
+  "routes": [{ "src": "/(.*)", "dest": "reactapp-apis/index.py" }]
 }
