@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException
 from config.db import users_collection
-from models.user import UserSignup, VerifyOTP
+from models.user import UserSignup, VerifyOTP, UserLogin
 from utils.otp import generate_otp, send_email_otp
 from passlib.hash import bcrypt
 from bson import ObjectId
+import bcrypt
 import datetime
 
 user = APIRouter()
@@ -113,3 +114,23 @@ async def get_user_by_id(user_id: str):
 
     user_doc["_id"] = str(user_doc["_id"])  # convert ObjectId to string
     return {"user": user_doc}
+
+# login 
+
+@user.post("/login")
+async def login(user_data: UserLogin):  # or a new schema like UserLogin with just email+password
+    # Check if user exists
+    user = users_collection.find_one({"email": user_data.email})
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid email or password")
+
+    # Check if verified
+    if not user.get("is_verified"):
+        raise HTTPException(status_code=403, detail="Please verify your email first")
+
+    # Verify password
+    if not bcrypt.checkpw(user_data.password.encode("utf-8"), user["password"].encode("utf-8")):
+        raise HTTPException(status_code=400, detail="Invalid email or password")
+
+    # ✅ Success (here you might return a JWT token for authentication)
+    return {"message": "Login successful", "email": user["email"]}
