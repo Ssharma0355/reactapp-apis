@@ -2,19 +2,24 @@ from fastapi import APIRouter, HTTPException
 from config.db import users_collection
 from models.user import UserSignup, VerifyOTP, UserLogin
 from utils.otp import generate_otp, send_email_otp
-from passlib.hash import bcrypt
 from bson import ObjectId
-import bcrypt
+from passlib.context import CryptContext
 import datetime
+from pydantic import BaseModel
 
 user = APIRouter()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+
+# ==========================
+# Signup
+# ==========================
 @user.post("/signup")
 async def signup(user_data: UserSignup):
     if users_collection.find_one({"email": user_data.email}):
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    hashed_password = bcrypt.hash(user_data.password)
+    hashed_password = pwd_context.hash(user_data.password)
     otp = generate_otp()
 
     try:
@@ -35,19 +40,22 @@ async def signup(user_data: UserSignup):
     return {"message": "User created. Please verify OTP sent to email."}
 
 
+# ==========================
+# Verify OTP
+# ==========================
 @user.post("/verify-otp")
 async def verify_otp(data: VerifyOTP):
-    user = users_collection.find_one({"email": data.email})
-    if not user:
+    user_doc = users_collection.find_one({"email": data.email})
+    if not user_doc:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if user.get("is_verified"):
+    if user_doc.get("is_verified"):
         return {"message": "User already verified"}
 
-    if user.get("otp") != data.otp:
+    if user_doc.get("otp") != data.otp:
         raise HTTPException(status_code=400, detail="Invalid OTP")
 
-    if datetime.datetime.utcnow() > user["otp_expiry"]:
+    if datetime.datetime.utcnow() > user_doc["otp_expiry"]:
         raise HTTPException(status_code=400, detail="OTP expired")
 
     users_collection.update_one(
@@ -58,38 +66,41 @@ async def verify_otp(data: VerifyOTP):
     return {"message": "Email verified successfully. User onboarded!"}
 
 
-@user.get("/users")
-async def get_allusers():
-    users = list(users_collection.find({}, {"password": 0, "otp": 0, "otp_expiry": 0}))
-    for user_doc in users:
-        user_doc["_id"] = str(user_doc["_id"])
-    return {"users": users}
-
+# ==========================
+# Resend OTP
+# ==========================
+class ResendOTP(BaseModel):
+    email: str
 
 @user.post("/resend-otp")
-async def resend_otp(email: str):
-    user = users_collection.find_one({"email": email})
-    if not user:
+async def resend_otp(data: ResendOTP):
+    user_doc = users_collection.find_one({"email": data.email})
+    if not user_doc:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if user.get("is_verified"):
+    if user_doc.get("is_verified"):
         return {"message": "User already verified"}
 
     otp = generate_otp()
     try:
-        send_email_otp(email, otp)
+        send_email_otp(data.email, otp)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error sending OTP: {e}")
 
     users_collection.update_one(
-        {"email": email},
-        {"$set": {"otp": otp, "otp_expiry": datetime.datetime.utcnow() + datetime.timedelta(minutes=5)}}
+        {"email": data.email},
+        {"$set": {
+            "otp": otp,
+            "otp_expiry": datetime.datetime.utcnow() + datetime.timedelta(minutes=5)
+        }}
     )
 
     return {"message": "OTP resent successfully"}
 
 
-# ✅ Get all users
+# ==========================
+# Get All Users
+# ==========================
 @user.get("/users")
 async def get_allusers():
     users = list(users_collection.find({}, {"password": 0, "otp": 0, "otp_expiry": 0}))
@@ -97,7 +108,10 @@ async def get_allusers():
         user_doc["_id"] = str(user_doc["_id"])  # convert ObjectId to string
     return {"users": users}
 
-# ✅ Get user by ID
+
+# ==========================
+# Get User By ID
+# ==========================
 @user.get("/users/{user_id}")
 async def get_user_by_id(user_id: str):
     try:
@@ -115,22 +129,20 @@ async def get_user_by_id(user_id: str):
     user_doc["_id"] = str(user_doc["_id"])  # convert ObjectId to string
     return {"user": user_doc}
 
-# login 
 
+# ==========================
+# Login
+# ==========================
 @user.post("/login")
-async def login(user_data: UserLogin):  # or a new schema like UserLogin with just email+password
-    # Check if user exists
-    user = users_collection.find_one({"email": user_data.email})
-    if not user:
+async def login(user_data: UserLogin):
+    user_doc = users_collection.find_one({"email": user_data.email})
+    if not user_doc:
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
-    # Check if verified
-    if not user.get("is_verified"):
+    if not user_doc.get("is_verified"):
         raise HTTPException(status_code=403, detail="Please verify your email first")
 
-    # Verify password
-    if not bcrypt.checkpw(user_data.password.encode("utf-8"), user["password"].encode("utf-8")):
+    if not pwd_context.verify(user_data.password, user_doc["password"]):
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
-    # ✅ Success (here you might return a JWT token for authentication)
-    return {"message": "Login successful", "email": user["email"]}
+    return {"message": "Login successful", "email": user_doc["email"]}
