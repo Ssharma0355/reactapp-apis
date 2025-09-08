@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from config.db import users_collection
-from models.user import UserSignup, VerifyOTP, UserLogin
+from models.user import UserSignup, VerifyOTP, UserLogin, HiringOnboarding, CandidateOnboarding
 from utils.otp import generate_otp, send_email_otp
 from bson import ObjectId
 from passlib.context import CryptContext
@@ -146,3 +146,41 @@ async def login(user_data: UserLogin):
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
     return {"message": "Login successful", "email": user_doc["email"]}
+
+# ==========================
+# Onboarding Routes will be added here later
+# ==========================    
+@user.post("/onboarding/hiring")
+async def hiring_onboarding(data: HiringOnboarding):
+    user_doc = users_collection.find_one({"email": data.email})
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not user_doc.get("is_verified"):
+        raise HTTPException(status_code=403, detail="Please verify email first")
+
+    users_collection.update_one(
+        {"email": data.email},
+        {"$set": {"onboarding_type": "hiring", "hiring_details": data.dict()}}
+    )
+
+    return {"message": "Hiring details saved successfully"}
+# ==========================
+# Onboarding Routes will be added here later
+# ==========================    
+
+@user.post("/onboarding/candidate")
+async def candidate_onboarding(data: CandidateOnboarding):
+    user_doc = users_collection.find_one({"email": data.email})
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not user_doc.get("is_verified"):
+        raise HTTPException(status_code=403, detail="Please verify email first")
+
+    users_collection.update_one(
+        {"email": data.email},
+        {"$set": {"onboarding_type": "candidate", "candidate_details": data.dict()}}
+    )
+
+    return {"message": "Candidate details saved successfully"}
