@@ -37,7 +37,15 @@ async def signup(user_data: UserSignup):
         "is_verified": False
     })
 
-    return {"message": "User created. Please verify OTP sent to email."}
+    return {
+        "message": "User created. Please verify OTP sent to email.",
+        "user": {
+            "firstname": user_data.firstname,
+            "lastname": user_data.lastname,
+            "email": user_data.email
+        }
+    }
+
 
 
 # ==========================
@@ -145,7 +153,15 @@ async def login(user_data: UserLogin):
     if not pwd_context.verify(user_data.password, user_doc["password"]):
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
-    return {"message": "Login successful", "email": user_doc["email"]}
+    return {
+        "message": "Login successful",
+        "user": {
+            "firstname": user_doc.get("firstname"),
+            "lastname": user_doc.get("lastname"),
+            "email": user_doc.get("email")
+        }
+    }
+
 
 # ==========================
 # Onboarding Routes will be added here later
