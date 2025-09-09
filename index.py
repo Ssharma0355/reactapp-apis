@@ -23,11 +23,12 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,     # now includes your Vercel app
+    allow_origins=["*"],   # loosen in dev, restrict in prod
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Include routes
 from routes.user import user
