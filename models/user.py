@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from typing import Optional, List
+import datetime
 
 class UserSignup(BaseModel):
     firstname: str
@@ -56,3 +57,14 @@ class CandidateOnboarding(BaseModel):
     marks: Optional[str]
     resume: Optional[str] = None        # uploaded resume path
     photo: Optional[str] = None 
+
+
+class PostCreate(BaseModel):
+    author_email: EmailStr
+    text: Optional[str] = None
+    media: Optional[str] = None   # Path to uploaded file
+
+class Comment(BaseModel):
+    user_email: EmailStr
+    text: str
+    created_at: datetime.datetime = datetime.datetime.utcnow()

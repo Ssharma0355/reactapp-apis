@@ -4,7 +4,7 @@ from models.user import UserSignup, VerifyOTP, UserLogin, HiringOnboarding, Cand
 from utils.otp import generate_otp, send_email_otp
 from bson import ObjectId
 from passlib.context import CryptContext
-import datetime
+import datetime, os
 from pydantic import BaseModel
 
 user = APIRouter()
@@ -37,7 +37,15 @@ async def signup(user_data: UserSignup):
         "is_verified": False
     })
 
-    return {"message": "User created. Please verify OTP sent to email."}
+    return {
+        "message": "User created. Please verify OTP sent to email.",
+        "user": {
+            "firstname": user_data.firstname,
+            "lastname": user_data.lastname,
+            "email": user_data.email
+        }
+    }
+
 
 
 # ==========================
@@ -145,7 +153,15 @@ async def login(user_data: UserLogin):
     if not pwd_context.verify(user_data.password, user_doc["password"]):
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
-    return {"message": "Login successful", "email": user_doc["email"]}
+    return {
+        "message": "Login successful",
+        "user": {
+            "firstname": user_doc.get("firstname"),
+            "lastname": user_doc.get("lastname"),
+            "email": user_doc.get("email")
+        }
+    }
+
 
 # ==========================
 # Onboarding Routes will be added here later
@@ -241,3 +257,65 @@ async def candidate_onboarding(
     )
 
     return {"message": "Candidate details saved successfully"}
+
+posts_collection = users_collection.database.get_collection("posts") 
+
+
+# ==========================
+# Create Post
+# ==========================
+@user.post("/posts")
+async def create_post(
+    author_email: str = Form(...),
+    text: str = Form(None),
+    media: UploadFile = File(None),
+):
+    user_doc = users_collection.find_one({"email": author_email})
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="Author not found")
+
+    media_path = None
+    if media:
+        os.makedirs("uploads/posts", exist_ok=True)
+        media_path = f"uploads/posts/{media.filename}"
+        with open(media_path, "wb") as f:
+            f.write(await media.read())
+
+    post_data = {
+        "author_email": author_email,
+        "author_name": f"{user_doc['firstname']} {user_doc['lastname']}",
+        "text": text,
+        "media": media_path,
+        "likes": [],
+        "comments": [],
+        "shares": 0,
+        "created_at": datetime.datetime.utcnow()
+    }
+    result = posts_collection.insert_one(post_data)
+    post_data["_id"] = str(result.inserted_id)
+
+    return {"message": "Post created successfully", "post": post_data}
+# ==========================
+# Get All Posts
+# ==========================
+@user.get("/posts")
+async def get_posts():
+    posts = list(posts_collection.find({}))
+    for post in posts:
+        post["_id"] = str(post["_id"])  # convert ObjectId to string
+        if post.get("created_at"):
+            post["created_at"] = post["created_at"].isoformat()
+    return {"posts": posts}
+
+
+# ==========================
+# Get Posts by Author
+# ==========================
+@user.get("/posts/{author_email}")
+async def get_posts_by_author(author_email: str):
+    posts = list(posts_collection.find({"author_email": author_email}))
+    for post in posts:
+        post["_id"] = str(post["_id"])
+        if post.get("created_at"):
+            post["created_at"] = post["created_at"].isoformat()
+    return {"posts": posts}
