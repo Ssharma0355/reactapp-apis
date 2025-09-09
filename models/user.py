@@ -20,6 +20,7 @@ class GetAllUsets(BaseModel):
     lastname: str
     email: EmailStr
 
+
 class HiringOnboarding(BaseModel):
     email: str
     jobTitle: str
@@ -36,6 +37,9 @@ class HiringOnboarding(BaseModel):
     benefits: Optional[str] = None
     contactEmail: str
     hiringManager: Optional[str] = None
+    companyLogo: Optional[str] = None   # store uploaded logo URL
+    jobBanner: Optional[str] = None     # store uploaded banner URL
+
 
 class CandidateOnboarding(BaseModel):
     email: str
@@ -50,3 +54,5 @@ class CandidateOnboarding(BaseModel):
     college: Optional[str]
     degree: Optional[str]
     marks: Optional[str]
+    resume: Optional[str] = None        # uploaded resume path
+    photo: Optional[str] = None 

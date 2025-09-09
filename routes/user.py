@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException,UploadFile, File, Form
 from config.db import users_collection
 from models.user import UserSignup, VerifyOTP, UserLogin, HiringOnboarding, CandidateOnboarding
 from utils.otp import generate_otp, send_email_otp
@@ -170,7 +170,64 @@ async def hiring_onboarding(data: HiringOnboarding):
 # ==========================    
 
 @user.post("/onboarding/candidate")
-async def candidate_onboarding(data: CandidateOnboarding):
+async def candidate_onboarding(
+    email: str = Form(...),
+    govtIdType: str = Form(None),
+    govtIdNumber: str = Form(None),
+    sex: str = Form(None),
+    dob: str = Form(None),
+    nationality: str = Form(None),
+    address: str = Form(None),
+    phone: str = Form(None),
+    experience: str = Form(None),
+    college: str = Form(None),
+    degree: str = Form(None),
+    marks: str = Form(None),
+    resume: UploadFile = File(None),
+    photo: UploadFile = File(None),
+):
+    user_doc = users_collection.find_one({"email": email})
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not user_doc.get("is_verified"):
+        raise HTTPException(status_code=403, detail="Please verify email first")
+
+    # Example: save files to disk
+    resume_path, photo_path = None, None
+    if resume:
+        resume_path = f"uploads/{resume.filename}"
+        with open(resume_path, "wb") as f:
+            f.write(await resume.read())
+    if photo:
+        photo_path = f"uploads/{photo.filename}"
+        with open(photo_path, "wb") as f:
+            f.write(await photo.read())
+
+    users_collection.update_one(
+        {"email": email},
+        {"$set": {
+            "onboarding_type": "candidate",
+            "candidate_details": {
+                "email": email,
+                "govtIdType": govtIdType,
+                "govtIdNumber": govtIdNumber,
+                "sex": sex,
+                "dob": dob,
+                "nationality": nationality,
+                "address": address,
+                "phone": phone,
+                "experience": experience,
+                "college": college,
+                "degree": degree,
+                "marks": marks,
+                "resume": resume_path,
+                "photo": photo_path,
+            }
+        }}
+    )
+
+    return {"message": "Candidate details saved successfully"}
     user_doc = users_collection.find_one({"email": data.email})
     if not user_doc:
         raise HTTPException(status_code=404, detail="User not found")
