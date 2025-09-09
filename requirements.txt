@@ -1,7 +1,9 @@
 fastapi
-mangum
+uvicorn
 pymongo
 python-dotenv
 passlib[bcrypt]
-uvicorn[standard]
 email-validator
+mangum        # only if AWS Lambda, not needed for Vercel
+python-multipart  # required for UploadFile
+pydantic[email]  # for email validation
